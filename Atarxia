@@ -1,0 +1,200 @@
+repeat task.wait() until game:IsLoaded()
+--lib
+local lib = loadstring(game:HttpGet(('https://raw.githubusercontent.com/shlexware/Orion/main/source')))()
+local ui = lib:MakeWindow({
+    Name = "Voxlblade ESP",
+    HidePremium = false,
+    IntroEnabled = false,
+    SaveConfig = true,
+    ConfigFolder = "Orion Lib"})
+ 
+--locals & constants
+local plr = game.Players.LocalPlayer
+local espBool, hpBool = true, false
+local espDistance = 5000
+local espSize = 15
+local espFont = Drawing.Fonts.Monospace
+local espColor = Color3.new(1,1,1)
+local espOutlineColor = Color3.new(0,0,0)
+local camera = workspace.CurrentCamera
+local runSer = game:GetService('RunService')
+ 
+--functions
+local function espDraw(model)
+    local text = Drawing.new('Text')
+    text.Visible = false
+    text.Transparency = 1
+    text.Center = true
+    text.Color = Color3.new(1,1,1)
+    text.Outline = true
+    text.OutlineColor = Color3.new(0,0,0)
+    text.Size = espSize
+    text.Font = espFont
+
+    
+    local render = runSer.RenderStepped:connect(function()
+        local s, e = pcall(function()
+        local plrChar = plr.Character
+        local plrHRP = plrChar:WaitForChild('HumanoidRootPart')
+        local magical = model:FindFirstChild('MagicalL')
+        local bloody = model:FindFirstChild('BloodyL')
+        local corrupt = model:FindFirstChild('CorruptL')
+        local legendary = model:FindFirstChild('LegendaryL')
+        
+        if not model or model == nil then text:Remove() render:Disconnect() return end
+        local vector, onScreen = camera:WorldToViewportPoint(model.Position)
+        if not onScreen then text.Visible = false return end
+        if not espBool then text.Visible = false return end
+        if math.floor((model.Position-plrHRP.Position).Magnitude) > espDistance then text.Visible = false return end
+        text.Text = ""
+        text.Visible = true
+        text.Text = string.gsub(model.Name, "%d+", "")
+        
+        if hpBool then
+            local maxHP = model:GetAttribute("MAXHP")
+            local hp = model:GetAttribute("HP")
+            text.Text = text.Text.." ["..tostring(math.floor(hp)).."/"..tostring(math.floor(maxHP)).."]"    
+        end    
+        
+        text.Text = text.Text..' - '..tostring(math.floor((plrHRP.Position-model.Position).Magnitude))..'m'
+        
+        if magical.Enabled then
+            text.Text = text.Text.."\n".."[Magical]"
+        end
+        
+        if bloody.Enabled then
+            text.Text = text.Text.."\n".."[Bloody]"
+        end
+        
+        if corrupt.Enabled then
+            text.Text = text.Text.."\n".."[Corrupt]"
+        end
+            
+        if legendary.Enabled then
+            text.Text = text.Text.."\n".."[Legendary]"
+        end
+        
+        
+        text.Position = Vector2.new(vector.X,vector.Y)
+        text.Color = espColor
+        text.Outline = true
+        text.OutlineColor = espOutlineColor
+        text.Size = espSize
+        text.Font = espFont
+        end)
+    end)    
+    
+    local removeConnection = workspace.NPCS.ChildRemoved:connect(function(v)
+        if v == model then
+            local s, e = pcall(function()
+            text:Remove()    
+            render:Disconnect()
+            removeConnection:Disconnect()
+            end)
+        end
+    end)
+end
+
+ 
+--===============================
+local page1 = ui:MakeTab({
+    Name = "Main",
+    PremiumOnly = false
+})
+
+local espToggle = page1:AddToggle({
+    Name = "Toggle ESP",
+    Default = true,
+    Callback = function(value)
+        espBool = value
+    end
+})
+
+local hpToggle = page1:AddToggle({
+    Name = "Mob HP",
+    Default = false,
+    Callback = function(value)
+        hpBool = value
+    end
+})
+
+local customSect = page1:AddSection({Name = 'Customise'})
+
+local ESPDistanceSlider = page1:AddSlider({
+    Name = 'Max ESP Distance',
+    Callback = function(value)
+    espDistance = value
+    end,
+    Min = 0, 
+    Max = 10000,
+    Default = 5000,
+})
+
+local ESPSizeSlider = page1:AddSlider({
+    Name = 'Text Size',
+    Callback = function(value)
+    espSize = value
+    end,
+    Min = 1, 
+    Max = 50,
+    Default = 15,
+})
+
+local ESPFontSlider = page1:AddDropdown({
+    Name = 'Font',
+    Callback = function(value)
+        if value == 'UI' then
+            espFont = Drawing.Fonts.UI
+        elseif value == 'System' then
+            espFont = Drawing.Fonts.System
+        elseif value == 'Plex' then
+            espFont = Drawing.Fonts.Plex
+        elseif value == 'Monospace' then
+            espFont = Drawing.Fonts.Monospace
+        end
+    end,
+    Options = {
+    'UI',
+    'System',
+    'Plex',
+    'Monospace'
+	}
+})
+
+local ESPColorPicker = page1:AddColorpicker({
+	Name = "ESP Color",
+	Default = Color3.fromRGB(255, 255, 255),
+	Callback = function(value)
+	    local colorStr = string.split(tostring(value),',')
+        local r = tonumber(colorStr[1])
+        local g = tonumber(colorStr[2])
+        local b = tonumber(colorStr[3])
+		espColor = Color3.new(r,g,b)
+	end	  
+})
+
+local ESPOutlineColorPicker = page1:AddColorpicker({
+	Name = "ESP Outline Color",
+	Default = Color3.fromRGB(0, 0, 0),
+	Callback = function(value)
+		local colorStr = string.split(tostring(value),',')
+        local r = tonumber(colorStr[1])
+        local g = tonumber(colorStr[2])
+        local b = tonumber(colorStr[3])
+		espOutlineColor = Color3.new(r,g,b)
+	end	  
+})
+
+
+
+--===============================
+--initial esp 
+for i,v in next, workspace.NPCS:GetChildren() do
+    espDraw(v)
+end
+--spawn event
+workspace.NPCS.ChildAdded:Connect(function(v)
+    espDraw(v)
+end)
+
+lib:Init()
