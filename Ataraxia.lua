@@ -124,6 +124,8 @@ local function espDraw(model)
 end
 
 -- Rayfield UI Elements
+
+-- Main Tab
 local MainTab = Window:CreateTab("Main", nil)
 
 local espToggle = MainTab:CreateToggle({
@@ -140,9 +142,10 @@ local hpToggle = MainTab:CreateToggle({
     Callback = function(Value) hpBool = Value end,
 })
 
-local CustomizeSection = MainTab:CreateSection("Customise")
+-- Customization Tab
+local CustomizeTab = Window:CreateTab("Customisation", nil)
 
-local ESPDistanceSlider = MainTab:CreateSlider({
+local ESPDistanceSlider = CustomizeTab:CreateSlider({
     Name = "Max ESP Distance",
     Range = {0, 5000},
     Increment = 100,
@@ -152,7 +155,7 @@ local ESPDistanceSlider = MainTab:CreateSlider({
     Callback = function(Value) espDistance = Value end,
 })
 
-local ESPSizeSlider = MainTab:CreateSlider({
+local ESPSizeSlider = CustomizeTab:CreateSlider({
     Name = "Text Size",
     Range = {1, 50},
     Increment = 1,
@@ -162,7 +165,7 @@ local ESPSizeSlider = MainTab:CreateSlider({
     Callback = function(Value) espSize = Value end,
 })
 
-local ESPFontDropdown = MainTab:CreateDropdown({
+local ESPFontDropdown = CustomizeTab:CreateDropdown({
     Name = "Font",
     Options = { "UI", "System", "Plex", "Monospace" },
     CurrentOption = { "Monospace" },
@@ -178,14 +181,14 @@ local ESPFontDropdown = MainTab:CreateDropdown({
     end,
 })
 
-local ESPColorPicker = MainTab:CreateColorPicker({
+local ESPColorPicker = CustomizeTab:CreateColorPicker({
     Name = "ESP Color",
     Color = Color3.fromRGB(255, 255, 255),
     Flag = "ESPColor",
     Callback = function(Value) espColor = Value end
 })
 
-local ESPOutlineColorPicker = MainTab:CreateColorPicker({
+local ESPOutlineColorPicker = CustomizeTab:CreateColorPicker({
     Name = "ESP Outline Color",
     Color = Color3.fromRGB(0, 0, 0),
     Flag = "ESPOutlineColor",
