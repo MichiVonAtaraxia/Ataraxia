@@ -2,7 +2,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Ataraxia Voxlblade Esp",
-    Icon = 0, 
+    Icon = 130335438575425, 
     LoadingTitle = "Loading In...",
     LoadingSubtitle = "Made by Ataraxia",
     ShowText = "Rayfield", 
@@ -140,17 +140,21 @@ local hpToggle = MainTab:CreateToggle({
     Callback = function(Value) hpBool = Value end,
 })
 
+local Divider = Tab:CreateDivider()
+
 local CustomizeSection = MainTab:CreateSection("Customise")
 
 local ESPDistanceSlider = MainTab:CreateSlider({
     Name = "Max ESP Distance",
-    Range = {0, 10000},
+    Range = {0, 5000},
     Increment = 100,
     Suffix = "m",
-    CurrentValue = 5000,
+    CurrentValue = 400,
     Flag = "ESPDistance",
     Callback = function(Value) espDistance = Value end,
 })
+
+local Divider = Tab:CreateDivider()
 
 local ESPSizeSlider = MainTab:CreateSlider({
     Name = "Text Size",
@@ -161,6 +165,8 @@ local ESPSizeSlider = MainTab:CreateSlider({
     Flag = "ESPSize",
     Callback = function(Value) espSize = Value end,
 })
+
+local Divider = Tab:CreateDivider()
 
 local ESPFontDropdown = MainTab:CreateDropdown({
     Name = "Font",
@@ -178,12 +184,16 @@ local ESPFontDropdown = MainTab:CreateDropdown({
     end,
 })
 
+local Divider = Tab:CreateDivider()
+
 local ESPColorPicker = MainTab:CreateColorPicker({
     Name = "ESP Color",
     Color = Color3.fromRGB(255, 255, 255),
     Flag = "ESPColor",
     Callback = function(Value) espColor = Value end
 })
+
+local Divider = Tab:CreateDivider()
 
 local ESPOutlineColorPicker = MainTab:CreateColorPicker({
     Name = "ESP Outline Color",
