@@ -144,10 +144,10 @@ local CustomizeSection = MainTab:CreateSection("Customise")
 
 local ESPDistanceSlider = MainTab:CreateSlider({
     Name = "Max ESP Distance",
-    Range = {0, 10000},
+    Range = {0, 5000},
     Increment = 100,
     Suffix = "m",
-    CurrentValue = 5000,
+    CurrentValue = 600,
     Flag = "ESPDistance",
     Callback = function(Value) espDistance = Value end,
 })
