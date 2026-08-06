@@ -140,7 +140,6 @@ local hpToggle = MainTab:CreateToggle({
     Callback = function(Value) hpBool = Value end,
 })
 
-local Divider = Tab:CreateDivider()
 
 local CustomizeSection = MainTab:CreateSection("Customise")
 
@@ -154,8 +153,6 @@ local ESPDistanceSlider = MainTab:CreateSlider({
     Callback = function(Value) espDistance = Value end,
 })
 
-local Divider = Tab:CreateDivider()
-
 local ESPSizeSlider = MainTab:CreateSlider({
     Name = "Text Size",
     Range = {1, 50},
@@ -165,8 +162,6 @@ local ESPSizeSlider = MainTab:CreateSlider({
     Flag = "ESPSize",
     Callback = function(Value) espSize = Value end,
 })
-
-local Divider = Tab:CreateDivider()
 
 local ESPFontDropdown = MainTab:CreateDropdown({
     Name = "Font",
@@ -184,16 +179,12 @@ local ESPFontDropdown = MainTab:CreateDropdown({
     end,
 })
 
-local Divider = Tab:CreateDivider()
-
 local ESPColorPicker = MainTab:CreateColorPicker({
     Name = "ESP Color",
     Color = Color3.fromRGB(255, 255, 255),
     Flag = "ESPColor",
     Callback = function(Value) espColor = Value end
 })
-
-local Divider = Tab:CreateDivider()
 
 local ESPOutlineColorPicker = MainTab:CreateColorPicker({
     Name = "ESP Outline Color",
