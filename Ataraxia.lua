@@ -147,7 +147,7 @@ local ESPDistanceSlider = MainTab:CreateSlider({
     Range = {0, 5000},
     Increment = 100,
     Suffix = "m",
-    CurrentValue = 600,
+    CurrentValue = 500,
     Flag = "ESPDistance",
     Callback = function(Value) espDistance = Value end,
 })
