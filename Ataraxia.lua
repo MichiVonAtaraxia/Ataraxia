@@ -1,6 +1,4 @@
-repeat task.wait() until game:IsLoaded()
-
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu"))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Ataraxia Voxlblade Esp",
