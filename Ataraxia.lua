@@ -2,7 +2,7 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Ataraxia Voxlblade Esp",
-    Icon = 130335438575425, 
+    Icon = 0, 
     LoadingTitle = "Loading In...",
     LoadingSubtitle = "Made by Ataraxia",
     ShowText = "Rayfield", 
@@ -140,15 +140,14 @@ local hpToggle = MainTab:CreateToggle({
     Callback = function(Value) hpBool = Value end,
 })
 
-
 local CustomizeSection = MainTab:CreateSection("Customise")
 
 local ESPDistanceSlider = MainTab:CreateSlider({
     Name = "Max ESP Distance",
-    Range = {0, 5000},
+    Range = {0, 10000},
     Increment = 100,
     Suffix = "m",
-    CurrentValue = 400,
+    CurrentValue = 5000,
     Flag = "ESPDistance",
     Callback = function(Value) espDistance = Value end,
 })
