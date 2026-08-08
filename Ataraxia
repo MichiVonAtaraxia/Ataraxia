@@ -34,14 +34,34 @@ local Window = Rayfield:CreateWindow({
 
 -- locals & constants
 local plr = game.Players.LocalPlayer
-local espBool, hpBool = true, false
-local espDistance = 5000
-local espSize = 15
+local espBool, hpBool = false, false 
+local espDistance = 500 -- FIXED: Initialized actual rendering distance to 500m instead of 5000m
+local espSize = 10 
 local espFont = Drawing.Fonts.Monospace
-local espColor = Color3.fromRGB(255, 255, 255)
-local espOutlineColor = Color3.fromRGB(0, 0, 0)
+local espColor = Color3.fromRGB(255, 255, 255) 
+local espOutlineColor = Color3.fromRGB(0, 0, 0) 
 local camera = workspace.CurrentCamera
 local runSer = game:GetService("RunService")
+local userInputSer = game:GetService("UserInputService")
+local lightingSer = game:GetService("Lighting")
+
+-- Player feature states
+local infJumpActive = false
+local loopWSActive = false
+local targetWalkSpeed = 16
+local antiLagActive = false 
+
+-- Low-spec part conversion asset handler
+local function cleanPart(v)
+    if antiLagActive then
+        if v:IsA("BasePart") and not v:IsA("MeshPart") then
+            v.Material = Enum.Material.Plastic
+            v.Reflectance = 0
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+        end
+    end
+end
 
 -- functions
 local function espDraw(model)
@@ -73,7 +93,6 @@ local function espDraw(model)
             local plrHRP = plrChar:FindFirstChild("HumanoidRootPart")
             if not plrHRP then text.Visible = false return end
 
-            -- Comprehensive multi-part type safety validation
             local targetPart = model:IsA("BasePart") and model or (model:FindFirstChild("HumanoidRootPart") or model:PrimaryPart() or model:FindFirstChildWhichIsA("BasePart"))
             if not targetPart then text.Visible = false return end
             
@@ -123,76 +142,151 @@ local function espDraw(model)
     end)
 end
 
--- Rayfield UI Elements
+-- Infinite Jump and Loop Walkspeed
+userInputSer.JumpRequest:Connect(function()
+    if infJumpActive and plr.Character then
+        local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
+        if hum then
+            hum:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
+    end
+end)
 
--- Main Tab
-local MainTab = Window:CreateTab("Main", nil)
+local function setupHumanoidSpeed(humanoid)
+    humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+        if loopWSActive and humanoid.WalkSpeed ~= targetWalkSpeed then
+            humanoid.WalkSpeed = targetWalkSpeed
+        end
+    end)
+end
 
-local espToggle = MainTab:CreateToggle({
+plr.CharacterAdded:Connect(function(char)
+    local hum = char:WaitForChild("Humanoid", 5)
+    if hum then setupHumanoidSpeed(hum) end
+end)
+
+if plr.Character and plr.Character:FindFirstChildWhichIsA("Humanoid") then
+    setupHumanoidSpeed(plr.Character:FindFirstChildWhichIsA("Humanoid"))
+end
+
+runSer.RenderStepped:Connect(function()
+    if loopWSActive and plr.Character then
+        local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
+        if hum and hum.WalkSpeed ~= targetWalkSpeed then
+            hum.WalkSpeed = targetWalkSpeed
+        end
+    end
+end)
+
+workspace.DescendantAdded:Connect(cleanPart)
+
+-- RAYFIELD UI INTERFACE SETUP
+
+-- 1. Player Tab
+local PlayerTab = Window:CreateTab("Player", nil)
+
+local InfJumpToggle = PlayerTab:CreateToggle({
+    Name = "Infinite Jump",
+    CurrentValue = false,
+    Flag = "InfJump",
+    Callback = function(Value)
+        infJumpActive = Value
+    end,
+})
+
+local LoopWSToggle = PlayerTab:CreateToggle({
+    Name = "Loop Walkspeed",
+    CurrentValue = false,
+    Flag = "LoopWS",
+    Callback = function(Value)
+        loopWSActive = Value
+        if Value and plr.Character then
+            local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
+            if hum then hum.WalkSpeed = targetWalkSpeed end
+        end
+    end,
+})
+
+local WSTextBox = PlayerTab:CreateInput({
+    Name = "Walkspeed Value",
+    PlaceholderText = "16",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num then
+            targetWalkSpeed = num
+            if loopWSActive and plr.Character then
+                local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
+                if hum then hum.WalkSpeed = num end
+            end
+        end
+    end
+})
+
+local AntiLagButton = PlayerTab:CreateButton({
+    Name = "Toggle Anti-Lag (Plastic)",
+    Callback = function()
+        antiLagActive = not antiLagActive
+        
+        if antiLagActive then
+            pcall(function()
+                for _, v in ipairs(workspace:GetDescendants()) do
+                    cleanPart(v)
+                end
+            end)
+        end
+        
+        Rayfield:Notify({
+            Title = "Anti-Lag Status",
+            Content = antiLagActive and "Anti-Lag optimization active! All parts are now plastic." or "Anti-Lag background updates paused.",
+            Duration = 3,
+            Image = 4483362458,
+        })
+    end,
+})
+
+-- 2. Mob Esp Tab
+local MobEspTab = Window:CreateTab("Mob Esp", nil)
+
+local espToggle = MobEspTab:CreateToggle({
     Name = "Toggle ESP",
-    CurrentValue = true,
+    CurrentValue = false, 
     Flag = "ToggleESP",
     Callback = function(Value) espBool = Value end,
 })
 
-local hpToggle = MainTab:CreateToggle({
+local hpToggle = MobEspTab:CreateToggle({
     Name = "Mob HP",
     CurrentValue = false,
     Flag = "MobHP",
     Callback = function(Value) hpBool = Value end,
 })
 
--- Customization Tab
-local CustomizeTab = Window:CreateTab("Customisation", nil)
+-- 3. Customization Tab
+local CustomizationTab = Window:CreateTab("Customization", nil)
 
-local ESPDistanceSlider = CustomizeTab:CreateSlider({
+local ESPDistanceInput = CustomizationTab:CreateInput({
     Name = "Max ESP Distance",
-    Range = {0, 5000},
-    Increment = 100,
-    Suffix = "m",
-    CurrentValue = 500,
-    Flag = "ESPDistance",
-    Callback = function(Value) espDistance = Value end,
-})
-
-local ESPSizeSlider = CustomizeTab:CreateSlider({
-    Name = "Text Size",
-    Range = {1, 50},
-    Increment = 1,
-    Suffix = "px",
-    CurrentValue = 15,
-    Flag = "ESPSize",
-    Callback = function(Value) espSize = Value end,
-})
-
-local ESPFontDropdown = CustomizeTab:CreateDropdown({
-    Name = "Font",
-    Options = { "UI", "System", "Plex", "Monospace" },
-    CurrentOption = { "Monospace" },
-    MultipleOptions = false,
-    Flag = "ESPFont",
-    Callback = function(Options)
-        -- Verified Fix: Cleanly extracts first table element string value from selection array
-        local selected = Options[1]
-        if selected == "UI" then espFont = Drawing.Fonts.UI
-        elseif selected == "System" then espFont = Drawing.Fonts.System
-        elseif selected == "Plex" then espFont = Drawing.Fonts.Plex
-        elseif selected == "Monospace" then espFont = Drawing.Fonts.Monospace end
+    PlaceholderText = "500", -- Updated placeholder text to match new default intent
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num then
+            espDistance = num
+        end
     end,
 })
 
-local ESPColorPicker = CustomizeTab:CreateColorPicker({
-    Name = "ESP Color",
-    Color = Color3.fromRGB(255, 255, 255),
-    Flag = "ESPColor",
-    Callback = function(Value) espColor = Value end
-})
-
-local ESPOutlineColorPicker = CustomizeTab:CreateColorPicker({
-    Name = "ESP Outline Color",
-    Color = Color3.fromRGB(0, 0, 0),
-    Flag = "ESPOutlineColor",
-    Callback = function(Value) espOutlineColor = Value end
+local ESPSizeInput = CustomizationTab:CreateInput({
+    Name = "Text Size",
+    PlaceholderText = "10",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num then
+            espSize = num
+        end
+    end,
 })
 
 -- Runtime Execution
@@ -203,3 +297,4 @@ end
 workspace.NPCS.ChildAdded:Connect(function(v)
     espDraw(v)
 end)
+
