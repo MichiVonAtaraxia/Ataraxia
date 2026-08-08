@@ -1,6 +1,3 @@
--- ====================================================================
--- SEGMENT 1: CORE ENGINE & BACKGROUND LOGIC
--- ====================================================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -43,7 +40,6 @@ getgenv().BeeDungeonEsp = false
 -- Customization Variables
 local espDistance = 5000 -- Max distance for Mob ESP
 local espSize = 10 -- Text size for Mob ESP
-getgenv().BeeDungeonDistance = 5000 -- Dedicated separate search range for Bee Dungeon
 
 local camera = workspace.CurrentCamera
 local runSer = game:GetService("RunService")
@@ -159,16 +155,16 @@ local function isBeeDungeonPart(instance)
     return false
 end
 
--- Applies pure white highlight only (Text completely removed)
+-- Applies pure white highlight only
 local function applyBeeEsp(part)
     local highlight = part:FindFirstChild("BeeDungeonHighlight")
 
     if not highlight then
         highlight = Instance.new("Highlight")
         highlight.Name = "BeeDungeonHighlight"
-        highlight.FillColor = Color3.fromRGB(255, 255, 255) -- Pure White Fill
+        highlight.FillColor = Color3.fromRGB(255, 255, 255) 
         highlight.FillTransparency = 0.5
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Pure White Outline
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) 
         highlight.OutlineTransparency = 0
         highlight.Adornee = part
         highlight.Parent = part
@@ -191,8 +187,8 @@ task.spawn(function()
             for _, desc in pairs(workspace:GetDescendants()) do
                 if isBeeDungeonPart(desc) then
                     local distance = (desc.Position - plrHRP.Position).Magnitude
-                    -- Evaluates based on the dedicated customized Bee Dungeon range constraint parameter
-                    if distance <= getgenv().BeeDungeonDistance then
+                    -- HARDCODED ACCORDING TO REQUIREMENTS: Only activates within 500 studs
+                    if distance <= 500 then
                         applyBeeEsp(desc)
                     else
                         removeBeeEsp(desc)
@@ -240,11 +236,8 @@ runSer.RenderStepped:Connect(function()
 end)
 
 workspace.DescendantAdded:Connect(cleanPart)
--- ====================================================================
--- SEGMENT 2: RAYFIELD INTERFACE LAYOUT & INITIALIZATION
--- ====================================================================
 
--- ─── PLAYER TAB ─────────────────────────────────────────────────────
+
 local PlayerTab = Window:CreateTab("Player", nil)
 
 local InfJumpToggle = PlayerTab:CreateToggle({
@@ -305,7 +298,7 @@ local AntiLagButton = PlayerTab:CreateButton({
     end,
 })
 
--- ─── GENERAL ESP TAB ────────────────────────────────────────────────
+
 local GeneralEspTab = Window:CreateTab("General Esp", nil)
 
 local espToggle = GeneralEspTab:CreateToggle({
@@ -328,10 +321,26 @@ local BeeDungeonToggle = GeneralEspTab:CreateToggle({
     Flag = "BeeDungeonEspToggle",
     Callback = function(Value)
         getgenv().BeeDungeonEsp = Value
+        
+        -- Sends popup notification when feature toggle switches state
+        if Value then
+            Rayfield:Notify({
+                Title = "Bee Dungeon Tracker",
+                Content = "ESP Active. Note: This feature will not display unless you are within 500 studs of the objective area.",
+                Duration = 5,
+                Image = 4483362458
+            })
+        else
+            Rayfield:Notify({
+                Title = "Bee Dungeon Tracker",
+                Content = "Dungeon search engine offline.",
+                Duration = 2,
+                Image = 4483362458
+            })
+        end
     end,
 })
 
--- ─── CUSTOMIZATION TAB ──────────────────────────────────────────────
 local CustomizationTab = Window:CreateTab("Customization", nil)
 
 local ESPDistanceInput = CustomizationTab:CreateInput({
@@ -358,22 +367,7 @@ local ESPSizeInput = CustomizationTab:CreateInput({
     end,
 })
 
--- NEW ADDITION: Dedicated independent configuration for Bee Dungeon range limits
-local BeeDungeonDistanceInput = CustomizationTab:CreateInput({
-    Name = "Bee Dungeon Search Range",
-    PlaceholderText = "5000",
-    RemoveTextAfterFocusLost = false,
-    Callback = function(Text)
-        local num = tonumber(Text)
-        if num then
-            getgenv().BeeDungeonDistance = num -- Changes search range strictly for the Bee Dungeon Highlight
-        end
-    end,
-})
 
--- ====================================================================
--- RUNTIME INITIALIZATION HOOKS
--- ====================================================================
 for _, v in ipairs(workspace.NPCS:GetChildren()) do
     espDraw(v)
 end
