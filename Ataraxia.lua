@@ -32,9 +32,7 @@ local Window = Rayfield:CreateWindow({
     }
 })
 
--- =========================================================
 -- locals & constants
--- =========================================================
 local plr = game.Players.LocalPlayer
 local espBool, hpBool = false, false 
 local espDistance = 500 -- FIXED: Initialized actual rendering distance to 500m instead of 5000m
@@ -144,10 +142,7 @@ local function espDraw(model)
     end)
 end
 
--- =========================================================
 -- Infinite Jump and Loop Walkspeed
--- =========================================================
-
 userInputSer.JumpRequest:Connect(function()
     if infJumpActive and plr.Character then
         local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
@@ -185,9 +180,7 @@ end)
 
 workspace.DescendantAdded:Connect(cleanPart)
 
--- =========================================================
 -- RAYFIELD UI INTERFACE SETUP
--- =========================================================
 
 -- 1. Player Tab
 local PlayerTab = Window:CreateTab("Player", nil)
@@ -214,10 +207,6 @@ local LoopWSToggle = PlayerTab:CreateToggle({
     end,
 })
 
--- =========================================================
--- Walkspeed Toggle
--- =========================================================
-
 local WSTextBox = PlayerTab:CreateInput({
     Name = "Walkspeed Value",
     PlaceholderText = "16",
@@ -233,10 +222,6 @@ local WSTextBox = PlayerTab:CreateInput({
         end
     end
 })
-
--- =========================================================
--- Antilag Button
--- =========================================================
 
 local AntiLagButton = PlayerTab:CreateButton({
     Name = "Toggle Anti-Lag (Plastic)",
@@ -260,11 +245,8 @@ local AntiLagButton = PlayerTab:CreateButton({
     end,
 })
 
--- =========================================================
 -- 2. Mob Esp Tab
--- =========================================================
-
-local MobEspTab = Window:CreateTab("General Esp", nil)
+local MobEspTab = Window:CreateTab("Mob Esp", nil)
 
 local espToggle = MobEspTab:CreateToggle({
     Name = "Toggle ESP",
@@ -280,145 +262,7 @@ local hpToggle = MobEspTab:CreateToggle({
     Callback = function(Value) hpBool = Value end,
 })
 
--- =========================================================
--- Bee Dungeon Esp
--- =========================================================
-
--- Configuration Global Variables
-getgenv().BeeDungeonEsp = false
-
--- Verification logic targeting structural map pieces
-local function isTargetPart(instance)
-    if not instance:IsA("BasePart") then return false end
-    if instance.Name == "BeeEspSignpost" then return false end -- Exclude our tracking boards
-    
-    if instance:FindFirstAncestorOfClass("Model") and instance:FindFirstAncestorOfClass("Model"):FindFirstChildOfClass("Humanoid") then
-        return false
-    end
-
-    local name = string.lower(instance.Name)
-    if string.find(name, "end") or string.find(name, "exit") or string.find(name, "finish") then
-        return true
-    end
-    return false
-end
-
--- Applies pure white highlight and camera-locked text banners
-local function applyEsp(part, currentDistance)
-    local highlight = part:FindFirstChild("BeeDungeonHighlight")
-    local signpost = part:FindFirstChild("BeeEspSignpost")
-
-    -- 1. Pure White Highlight Box Configuration
-    if not highlight then
-        highlight = Instance.new("Highlight")
-        highlight.Name = "BeeDungeonHighlight"
-        highlight.FillColor = Color3.fromRGB(255, 255, 255) -- Pure White Fill
-        highlight.FillTransparency = 0.5
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Pure White Outline
-        highlight.OutlineTransparency = 0
-        highlight.Adornee = part
-        highlight.Parent = part
-    end
-
-    -- 2. Camera-Locked Text Configuration (SurfaceGui Signpost)
-    if not signpost then
-        signpost = Instance.new("Part")
-        signpost.Name = "BeeEspSignpost"
-        signpost.Size = Vector3.new(12, 4, 0.1)
-        signpost.Position = part.Position + Vector3.new(0, 8, 0) -- Anchored stably right above the object area
-        signpost.Transparency = 1
-        signpost.Anchored = true
-        signpost.CanCollide = false
-        signpost.CanQuery = false
-        signpost.CanTouch = false
-        signpost.Parent = part
-
-        -- Front face text layer
-        local surfaceGui = Instance.new("SurfaceGui")
-        surfaceGui.Name = "TextHolder"
-        surfaceGui.Face = Enum.NormalId.Front
-        surfaceGui.AlwaysOnTop = true -- Pierces walls so you can see it across maps
-        surfaceGui.CanvasSize = Vector2.new(600, 200)
-        surfaceGui.Parent = signpost
-
-        local label = Instance.new("TextLabel")
-        label.Name = "DistanceLabel"
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.TextColor3 = Color3.fromRGB(255, 255, 255) -- Pure White Text
-        label.TextSize = 40
-        label.Font = Enum.Font.SourceSansBold
-        label.TextStrokeTransparency = 0
-        label.Parent = surfaceGui
-
-        -- Mirror text layer on back face so it's readable from all entry angles
-        local surfaceGuiBack = surfaceGui:Clone()
-        surfaceGuiBack.Face = Enum.NormalId.Back
-        surfaceGuiBack.Parent = signpost
-    end
-
-    -- Update tracking distance calculations live on the signpost banners
-    if signpost then
-        for _, gui in pairs(signpost:GetChildren()) do
-            if gui:IsA("SurfaceGui") and gui:FindFirstChild("DistanceLabel") then
-                gui.DistanceLabel.Text = string.format("Bee Dungeon End - %d Studs Away", math.round(currentDistance))
-            end
-        end
-    end
-end
-
--- Safely cleans up elements
-local function removeEsp(part)
-    if part:FindFirstChild("BeeDungeonHighlight") then
-        part.BeeDungeonHighlight:Destroy()
-    end
-    if part:FindFirstChild("BeeEspSignpost") then
-        part.BeeEspSignpost:Destroy()
-    end
-end
-
--- Scanning loop runs infinitely with no distance limits
-task.spawn(function()
-    local Players = game:GetService("Players")
-    local LocalPlayer = Players.LocalPlayer
-
-    while task.wait(0.5) do 
-        local character = LocalPlayer.Character
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-
-        if getgenv().BeeDungeonEsp and rootPart then
-            for _, desc in pairs(workspace:GetDescendants()) do
-                if isTargetPart(desc) then
-                    local distance = (desc.Position - rootPart.Position).Magnitude
-                    -- Applies the ESP directly to all found instances with zero boundary checks
-                    applyEsp(desc, distance)
-                end
-            end
-        else
-            -- Clean out objects completely if the menu switch flag transitions to false
-            for _, desc in pairs(workspace:GetDescendants()) do
-                if desc:IsA("BasePart") then
-                    removeEsp(desc)
-                end
-            end
-        end
-    end
-end)
-
--- Main Toggle Element
-EspTab:CreateToggle({
-    Name = "Search for Bee End Dungeon",
-    CurrentValue = false,
-    Flag = "BeeDungeonEspToggle",
-    Callback = function(Value)
-        getgenv().BeeDungeonEsp = Value
-    end,
-})
-
--- =========================================================
 -- 3. Customization Tab
--- =========================================================
-
 local CustomizationTab = Window:CreateTab("Customization", nil)
 
 local ESPDistanceInput = CustomizationTab:CreateInput({
