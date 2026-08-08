@@ -1,3 +1,6 @@
+-- ====================================================================
+-- SEGMENT 1: CORE ENGINE & BACKGROUND LOGIC
+-- ====================================================================
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
@@ -37,9 +40,10 @@ local plr = game.Players.LocalPlayer
 local espBool, hpBool = false, false 
 getgenv().BeeDungeonEsp = false 
 
--- Customization Shared Variables (Alters both Mob and Bee Dungeon)
-local espDistance = 5000 
-local espSize = 10 
+-- Customization Variables
+local espDistance = 5000 -- Max distance for Mob ESP
+local espSize = 10 -- Text size for Mob ESP
+getgenv().BeeDungeonDistance = 5000 -- Dedicated separate search range for Bee Dungeon
 
 local camera = workspace.CurrentCamera
 local runSer = game:GetService("RunService")
@@ -143,7 +147,6 @@ end
 -- Bee Dungeon Verification Logic
 local function isBeeDungeonPart(instance)
     if not instance:IsA("BasePart") then return false end
-    if instance.Name == "BeeEspSignpost" then return false end
     
     if instance:FindFirstAncestorOfClass("Model") and instance:FindFirstAncestorOfClass("Model"):FindFirstChildOfClass("Humanoid") then
         return false
@@ -156,58 +159,25 @@ local function isBeeDungeonPart(instance)
     return false
 end
 
--- Scoreboard-Style Camera Locked UI Element Generator
-local function applyBeeEsp(part, currentDistance)
-    local signpost = part:FindFirstChild("BeeEspSignpost")
+-- Applies pure white highlight only (Text completely removed)
+local function applyBeeEsp(part)
+    local highlight = part:FindFirstChild("BeeDungeonHighlight")
 
-    if not signpost then
-        signpost = Instance.new("Part")
-        signpost.Name = "BeeEspSignpost"
-        -- Uses relative spatial canvas size
-        signpost.Size = Vector3.new(24, 6, 0.1)
-        signpost.Position = part.Position + Vector3.new(0, 12, 0) -- Placed locked right above middle end
-        signpost.Transparency = 1
-        signpost.Anchored = true
-        signpost.CanCollide = false
-        signpost.CanQuery = false
-        signpost.CanTouch = false
-        signpost.Parent = part
-
-        local surfaceGui = Instance.new("SurfaceGui")
-        surfaceGui.Name = "TextHolder"
-        surfaceGui.Face = Enum.NormalId.Front
-        surfaceGui.AlwaysOnTop = true -- Far distance wall rendering
-        surfaceGui.CanvasSize = Vector2.new(1200, 300)
-        surfaceGui.Parent = signpost
-
-        local label = Instance.new("TextLabel")
-        label.Name = "DistanceLabel"
-        label.Size = UDim2.new(1, 0, 1, 0)
-        label.BackgroundTransparency = 1
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.Font = Enum.Font.Code
-        label.TextStrokeTransparency = 0
-        label.Parent = surfaceGui
-
-        -- Clones back face to preserve multi-directional viewing lines
-        local surfaceGuiBack = surfaceGui:Clone()
-        surfaceGuiBack.Face = Enum.NormalId.Back
-        surfaceGuiBack.Parent = signpost
-    end
-
-    -- Updates distances and custom font sizes dynamically across both panels
-    for _, gui in pairs(signpost:GetChildren()) do
-        if gui:IsA("SurfaceGui") and gui:FindFirstChild("DistanceLabel") then
-            local label = gui.DistanceLabel
-            label.TextSize = espSize * 4 -- Proportional text scaling to match UI configuration ratios
-            label.Text = string.format("Bee Dungeon End - %dm", math.floor(currentDistance))
-        end
+    if not highlight then
+        highlight = Instance.new("Highlight")
+        highlight.Name = "BeeDungeonHighlight"
+        highlight.FillColor = Color3.fromRGB(255, 255, 255) -- Pure White Fill
+        highlight.FillTransparency = 0.5
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- Pure White Outline
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = part
+        highlight.Parent = part
     end
 end
 
 local function removeBeeEsp(part)
-    if part:FindFirstChild("BeeEspSignpost") then
-        part.BeeEspSignpost:Destroy()
+    if part:FindFirstChild("BeeDungeonHighlight") then
+        part.BeeDungeonHighlight:Destroy()
     end
 end
 
@@ -221,8 +191,9 @@ task.spawn(function()
             for _, desc in pairs(workspace:GetDescendants()) do
                 if isBeeDungeonPart(desc) then
                     local distance = (desc.Position - plrHRP.Position).Magnitude
-                    if distance <= espDistance then
-                        applyBeeEsp(desc, distance)
+                    -- Evaluates based on the dedicated customized Bee Dungeon range constraint parameter
+                    if distance <= getgenv().BeeDungeonDistance then
+                        applyBeeEsp(desc)
                     else
                         removeBeeEsp(desc)
                     end
@@ -269,8 +240,11 @@ runSer.RenderStepped:Connect(function()
 end)
 
 workspace.DescendantAdded:Connect(cleanPart)
+-- ====================================================================
+-- SEGMENT 2: RAYFIELD INTERFACE LAYOUT & INITIALIZATION
+-- ====================================================================
 
--- ─── PLAYER TAB
+-- ─── PLAYER TAB ─────────────────────────────────────────────────────
 local PlayerTab = Window:CreateTab("Player", nil)
 
 local InfJumpToggle = PlayerTab:CreateToggle({
@@ -331,7 +305,7 @@ local AntiLagButton = PlayerTab:CreateButton({
     end,
 })
 
--- ─── GENERAL ESP TAB
+-- ─── GENERAL ESP TAB ────────────────────────────────────────────────
 local GeneralEspTab = Window:CreateTab("General Esp", nil)
 
 local espToggle = GeneralEspTab:CreateToggle({
@@ -357,7 +331,7 @@ local BeeDungeonToggle = GeneralEspTab:CreateToggle({
     end,
 })
 
--- ─── CUSTOMIZATION TAB
+-- ─── CUSTOMIZATION TAB ──────────────────────────────────────────────
 local CustomizationTab = Window:CreateTab("Customization", nil)
 
 local ESPDistanceInput = CustomizationTab:CreateInput({
@@ -367,7 +341,7 @@ local ESPDistanceInput = CustomizationTab:CreateInput({
     Callback = function(Text)
         local num = tonumber(Text)
         if num then
-            espDistance = num 
+            espDistance = num -- Changes Max Distance for Mob ESP
         end
     end,
 })
@@ -379,7 +353,20 @@ local ESPSizeInput = CustomizationTab:CreateInput({
     Callback = function(Text)
         local num = tonumber(Text)
         if num then
-            espSize = num 
+            espSize = num -- Changes Text Size for Mob ESP
+        end
+    end,
+})
+
+-- NEW ADDITION: Dedicated independent configuration for Bee Dungeon range limits
+local BeeDungeonDistanceInput = CustomizationTab:CreateInput({
+    Name = "Bee Dungeon Search Range",
+    PlaceholderText = "5000",
+    RemoveTextAfterFocusLost = false,
+    Callback = function(Text)
+        local num = tonumber(Text)
+        if num then
+            getgenv().BeeDungeonDistance = num -- Changes search range strictly for the Bee Dungeon Highlight
         end
     end,
 })
