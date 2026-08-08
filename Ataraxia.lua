@@ -1,4 +1,7 @@
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- ====================================================================
+-- SEGMENT 1: CORE ENGINE & BACKGROUND LOGIC
+-- ====================================================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Ataraxia Voxlblade Esp",
@@ -8,7 +11,7 @@ local Window = Rayfield:CreateWindow({
     ShowText = "Rayfield", 
     Theme = "Default", 
     ToggleUIKeybind = "K", 
-    DisableRayfieldPrompts = false,
+    DisableRayfieldPrompts = true, -- FIXED: Prompt deactivated
     DisableBuildWarnings = false, 
     ConfigurationSaving = {
         Enabled = true,
@@ -36,6 +39,8 @@ local Window = Rayfield:CreateWindow({
 local plr = game.Players.LocalPlayer
 local espBool, hpBool = false, false 
 getgenv().BeeDungeonEsp = false 
+getgenv().SnailmanEsp = false -- Global state for Snailman Tracker
+getgenv().SnailfangEsp = false -- Global state for Snailfang Tracker
 
 -- Customization Variables
 local espDistance = 5000 -- Max distance for Mob ESP
@@ -140,28 +145,29 @@ local function espDraw(model)
     end)
 end
 
--- Bee Dungeon Verification Logic
-local function isBeeDungeonPart(instance)
+-- Target Verification Filter (Excludes Mobs/Players with Humanoids)
+local function isValidMapPart(instance, keyword)
     if not instance:IsA("BasePart") then return false end
+    if instance.Name == "BeeEspSignpost" then return false end
     
     if instance:FindFirstAncestorOfClass("Model") and instance:FindFirstAncestorOfClass("Model"):FindFirstChildOfClass("Humanoid") then
         return false
     end
 
     local name = string.lower(instance.Name)
-    if string.find(name, "end") or string.find(name, "exit") or string.find(name, "finish") then
+    if string.find(name, keyword) then
         return true
     end
     return false
 end
 
--- Applies pure white highlight only
-local function applyBeeEsp(part)
-    local highlight = part:FindFirstChild("BeeDungeonHighlight")
+-- Generic Pure White Highlight Creator
+local function applyObjectEsp(part, highlightName)
+    local highlight = part:FindFirstChild(highlightName)
 
     if not highlight then
         highlight = Instance.new("Highlight")
-        highlight.Name = "BeeDungeonHighlight"
+        highlight.Name = highlightName
         highlight.FillColor = Color3.fromRGB(255, 255, 255) 
         highlight.FillTransparency = 0.5
         highlight.OutlineColor = Color3.fromRGB(255, 255, 255) 
@@ -171,33 +177,56 @@ local function applyBeeEsp(part)
     end
 end
 
-local function removeBeeEsp(part)
-    if part:FindFirstChild("BeeDungeonHighlight") then
-        part.BeeDungeonHighlight:Destroy()
+local function removeObjectEsp(part, highlightName)
+    if part:FindFirstChild(highlightName) then
+        part[highlightName]:Destroy()
     end
 end
 
--- Infinite Background Thread Loop for Target Interception
+-- Infinite Background Thread Loop for Multi-Target Interception
 task.spawn(function()
     while task.wait(0.4) do
         local plrChar = plr.Character
         local plrHRP = plrChar and plrChar:FindFirstChild("HumanoidRootPart")
 
-        if getgenv().BeeDungeonEsp and plrHRP then
+        if plrHRP then
             for _, desc in pairs(workspace:GetDescendants()) do
-                if isBeeDungeonPart(desc) then
+                if desc:IsA("BasePart") then
                     local distance = (desc.Position - plrHRP.Position).Magnitude
-                    -- HARDCODED ACCORDING TO REQUIREMENTS: Only activates within 500 studs
-                    if distance <= 500 then
-                        applyBeeEsp(desc)
+                    
+                    -- 1. Bee Dungeon Handler (Look for "end"/"exit"/"finish")
+                    local isBee = isValidMapPart(desc, "end") or isValidMapPart(desc, "exit") or isValidMapPart(desc, "finish")
+                    if getgenv().BeeDungeonEsp and isBee and distance <= 500 then
+                        applyObjectEsp(desc, "BeeDungeonHighlight")
                     else
-                        removeBeeEsp(desc)
+                        if isBee then removeObjectEsp(desc, "BeeDungeonHighlight") end
+                    end
+
+                    -- 2. Snailman Handler (Look for "snailman")
+                    local isSnailman = isValidMapPart(desc, "snailman")
+                    if getgenv().SnailmanEsp and isSnailman and distance <= 500 then
+                        applyObjectEsp(desc, "SnailmanHighlight")
+                    else
+                        if isSnailman then removeObjectEsp(desc, "SnailmanHighlight") end
+                    end
+
+                    -- 3. Snailfang Handler (Look for "snailfang")
+                    local isSnailfang = isValidMapPart(desc, "snailfang")
+                    if getgenv().SnailfangEsp and isSnailfang and distance <= 500 then
+                        applyObjectEsp(desc, "SnailfangHighlight")
+                    else
+                        if isSnailfang then removeObjectEsp(desc, "SnailfangHighlight") end
                     end
                 end
             end
         else
+            -- Clean out memory if local character disappears
             for _, desc in pairs(workspace:GetDescendants()) do
-                if desc:IsA("BasePart") then removeBeeEsp(desc) end
+                if desc:IsA("BasePart") then
+                    removeObjectEsp(desc, "BeeDungeonHighlight")
+                    removeObjectEsp(desc, "SnailmanHighlight")
+                    removeObjectEsp(desc, "SnailfangHighlight")
+                end
             end
         end
     end
@@ -235,9 +264,11 @@ runSer.RenderStepped:Connect(function()
     end
 end)
 
-workspace.DescendantAdded:Connect(cleanPart)
+-- ====================================================================
+-- SEGMENT 2: RAYFIELD INTERFACE LAYOUT & INITIALIZATION
+-- ====================================================================
 
-
+-- ─── PLAYER TAB ─────────────────────────────────────────────────────
 local PlayerTab = Window:CreateTab("Player", nil)
 
 local InfJumpToggle = PlayerTab:CreateToggle({
@@ -297,8 +328,7 @@ local AntiLagButton = PlayerTab:CreateButton({
         })
     end,
 })
-
-
+-- ─── GENERAL ESP TAB ────────────────────────────────────────────────
 local GeneralEspTab = Window:CreateTab("General Esp", nil)
 
 local espToggle = GeneralEspTab:CreateToggle({
@@ -321,26 +351,51 @@ local BeeDungeonToggle = GeneralEspTab:CreateToggle({
     Flag = "BeeDungeonEspToggle",
     Callback = function(Value)
         getgenv().BeeDungeonEsp = Value
-        
-        -- Sends popup notification when feature toggle switches state
         if Value then
             Rayfield:Notify({
                 Title = "Bee Dungeon Tracker",
-                Content = "ESP Active. Note: This feature will not display unless you are within 500 studs of the objective area.",
+                Content = "ESP Active. Note: Only displays within 500 studs.",
                 Duration = 5,
-                Image = 4483362458
-            })
-        else
-            Rayfield:Notify({
-                Title = "Bee Dungeon Tracker",
-                Content = "Dungeon search engine offline.",
-                Duration = 2,
                 Image = 4483362458
             })
         end
     end,
 })
 
+local SnailmanToggle = GeneralEspTab:CreateToggle({
+    Name = "Snailman",
+    CurrentValue = false,
+    Flag = "SnailmanEspToggle",
+    Callback = function(Value)
+        getgenv().SnailmanEsp = Value
+        if Value then
+            Rayfield:Notify({
+                Title = "Snailman Tracker",
+                Content = "ESP Active. Note: Only displays within 500 studs.",
+                Duration = 5,
+                Image = 4483362458
+            })
+        end
+    end,
+})
+
+local SnailfangToggle = GeneralEspTab:CreateToggle({
+    Name = "Snailfang",
+    CurrentValue = false,
+    Flag = "SnailfangEspToggle",
+    Callback = function(Value)
+        getgenv().SnailfangEsp = Value
+        if Value then
+            Rayfield:Notify({
+                Title = "Snailfang Tracker",
+                Content = "ESP Active. Note: Only displays within 500 studs.",
+                Duration = 5,
+                Image = 4483362458
+            })
+        end
+    end,
+})
+-- ─── CUSTOMIZATION TAB ──────────────────────────────────────────────
 local CustomizationTab = Window:CreateTab("Customization", nil)
 
 local ESPDistanceInput = CustomizationTab:CreateInput({
@@ -350,7 +405,7 @@ local ESPDistanceInput = CustomizationTab:CreateInput({
     Callback = function(Text)
         local num = tonumber(Text)
         if num then
-            espDistance = num -- Changes Max Distance for Mob ESP
+            espDistance = num 
         end
     end,
 })
@@ -362,12 +417,14 @@ local ESPSizeInput = CustomizationTab:CreateInput({
     Callback = function(Text)
         local num = tonumber(Text)
         if num then
-            espSize = num -- Changes Text Size for Mob ESP
+            espSize = num 
         end
     end,
 })
 
-
+-- ====================================================================
+-- RUNTIME INITIALIZATION HOOKS
+-- ====================================================================
 for _, v in ipairs(workspace.NPCS:GetChildren()) do
     espDraw(v)
 end
