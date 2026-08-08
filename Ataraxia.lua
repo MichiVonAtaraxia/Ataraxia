@@ -1,7 +1,4 @@
--- ====================================================================
--- SEGMENT 1: CORE ENGINE & BACKGROUND LOGIC
--- ====================================================================
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu'))()
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Ataraxia Voxlblade Esp",
@@ -273,11 +270,7 @@ end)
 
 workspace.DescendantAdded:Connect(cleanPart)
 
--- ====================================================================
--- SEGMENT 2: RAYFIELD INTERFACE LAYOUT & INITIALIZATION
--- ====================================================================
-
--- ─── PLAYER TAB ─────────────────────────────────────────────────────
+-- ─── PLAYER TAB
 local PlayerTab = Window:CreateTab("Player", nil)
 
 local InfJumpToggle = PlayerTab:CreateToggle({
@@ -338,7 +331,7 @@ local AntiLagButton = PlayerTab:CreateButton({
     end,
 })
 
--- ─── GENERAL ESP TAB ────────────────────────────────────────────────
+-- ─── GENERAL ESP TAB
 local GeneralEspTab = Window:CreateTab("General Esp", nil)
 
 local espToggle = GeneralEspTab:CreateToggle({
@@ -364,7 +357,7 @@ local BeeDungeonToggle = GeneralEspTab:CreateToggle({
     end,
 })
 
--- ─── CUSTOMIZATION TAB ──────────────────────────────────────────────
+-- ─── CUSTOMIZATION TAB
 local CustomizationTab = Window:CreateTab("Customization", nil)
 
 local ESPDistanceInput = CustomizationTab:CreateInput({
