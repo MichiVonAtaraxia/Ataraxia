@@ -1,7 +1,7 @@
--- =========================================================
--- 1. MAIN SYSTEM SCRIPT (Core Logic, Services & Constants)
--- =========================================================
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+-- ====================================================================
+-- SEGMENT 1: CORE ENGINE & BACKGROUND LOGIC
+-- ====================================================================
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu'))()
 
 local Window = Rayfield:CreateWindow({
     Name = "Ataraxia Voxlblade Esp",
@@ -38,14 +38,11 @@ local Window = Rayfield:CreateWindow({
 -- Locals & Constants
 local plr = game.Players.LocalPlayer
 local espBool, hpBool = false, false 
-getgenv().BeeDungeonEsp = false -- Global state for the Bee Dungeon tracker
+getgenv().BeeDungeonEsp = false 
 
--- Customization Variables (Controls BOTH Mob and Bee Dungeon ESP)
+-- Customization Shared Variables (Alters both Mob and Bee Dungeon)
 local espDistance = 5000 
 local espSize = 10 
-local espFont = Drawing.Fonts.Monospace
-local espColor = Color3.fromRGB(255, 255, 255) 
-local espOutlineColor = Color3.fromRGB(0, 0, 0) 
 
 local camera = workspace.CurrentCamera
 local runSer = game:GetService("RunService")
@@ -70,17 +67,17 @@ local function cleanPart(v)
     end
 end
 
--- Mob ESP Drawing Hook (Drawing API)
+-- Mob ESP Drawing Engine (Uses Core 2D Drawing API)
 local function espDraw(model)
     local text = Drawing.new("Text")
     text.Visible = false
     text.Transparency = 1
     text.Center = true
-    text.Color = espColor
+    text.Color = Color3.fromRGB(255, 255, 255)
     text.Outline = true
-    text.OutlineColor = espOutlineColor
+    text.OutlineColor = Color3.fromRGB(0, 0, 0)
     text.Size = espSize
-    text.Font = espFont
+    text.Font = Drawing.Fonts.Monospace
 
     local render
     local removeConnection
@@ -131,10 +128,7 @@ local function espDraw(model)
             if legendary and legendary.Enabled then text.Text = text.Text .. "\n" .. "[Legendary]" end
 
             text.Position = Vector2.new(vector.X, vector.Y)
-            text.Color = espColor
-            text.OutlineColor = espOutlineColor
             text.Size = espSize
-            text.Font = espFont
         end)
     end)
 
@@ -149,9 +143,10 @@ local function espDraw(model)
     end)
 end
 
--- Bee Dungeon Target Filtering Logic
+-- Bee Dungeon Verification Logic
 local function isBeeDungeonPart(instance)
     if not instance:IsA("BasePart") then return false end
+    if instance.Name == "BeeEspSignpost" then return false end
     
     if instance:FindFirstAncestorOfClass("Model") and instance:FindFirstAncestorOfClass("Model"):FindFirstChildOfClass("Humanoid") then
         return false
@@ -164,11 +159,64 @@ local function isBeeDungeonPart(instance)
     return false
 end
 
--- Self-Contained Bee Dungeon Tracker using the exact same Drawing API structure
-task.spawn(function()
-    local trackedTexts = {} -- Keeps track of Drawing elements created for parts
+-- Scoreboard-Style Camera Locked UI Element Generator
+local function applyBeeEsp(part, currentDistance)
+    local signpost = part:FindFirstChild("BeeEspSignpost")
 
-    while task.wait(0.2) do
+    if not signpost then
+        signpost = Instance.new("Part")
+        signpost.Name = "BeeEspSignpost"
+        -- Uses relative spatial canvas size
+        signpost.Size = Vector3.new(24, 6, 0.1)
+        signpost.Position = part.Position + Vector3.new(0, 12, 0) -- Placed locked right above middle end
+        signpost.Transparency = 1
+        signpost.Anchored = true
+        signpost.CanCollide = false
+        signpost.CanQuery = false
+        signpost.CanTouch = false
+        signpost.Parent = part
+
+        local surfaceGui = Instance.new("SurfaceGui")
+        surfaceGui.Name = "TextHolder"
+        surfaceGui.Face = Enum.NormalId.Front
+        surfaceGui.AlwaysOnTop = true -- Far distance wall rendering
+        surfaceGui.CanvasSize = Vector2.new(1200, 300)
+        surfaceGui.Parent = signpost
+
+        local label = Instance.new("TextLabel")
+        label.Name = "DistanceLabel"
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.Font = Enum.Font.Code
+        label.TextStrokeTransparency = 0
+        label.Parent = surfaceGui
+
+        -- Clones back face to preserve multi-directional viewing lines
+        local surfaceGuiBack = surfaceGui:Clone()
+        surfaceGuiBack.Face = Enum.NormalId.Back
+        surfaceGuiBack.Parent = signpost
+    end
+
+    -- Updates distances and custom font sizes dynamically across both panels
+    for _, gui in pairs(signpost:GetChildren()) do
+        if gui:IsA("SurfaceGui") and gui:FindFirstChild("DistanceLabel") then
+            local label = gui.DistanceLabel
+            label.TextSize = espSize * 4 -- Proportional text scaling to match UI configuration ratios
+            label.Text = string.format("Bee Dungeon End - %dm", math.floor(currentDistance))
+        end
+    end
+end
+
+local function removeBeeEsp(part)
+    if part:FindFirstChild("BeeEspSignpost") then
+        part.BeeEspSignpost:Destroy()
+    end
+end
+
+-- Infinite Background Thread Loop for Target Interception
+task.spawn(function()
+    while task.wait(0.4) do
         local plrChar = plr.Character
         local plrHRP = plrChar and plrChar:FindFirstChild("HumanoidRootPart")
 
@@ -176,57 +224,29 @@ task.spawn(function()
             for _, desc in pairs(workspace:GetDescendants()) do
                 if isBeeDungeonPart(desc) then
                     local distance = (desc.Position - plrHRP.Position).Magnitude
-
                     if distance <= espDistance then
-                        local vector, onScreen = camera:WorldToViewportPoint(desc.Position)
-
-                        if onScreen then
-                            -- Create Drawing text entry if it doesn't exist yet
-                            if not trackedTexts[desc] then
-                                local text = Drawing.new("Text")
-                                text.Center = true
-                                text.Outline = true
-                                text.Transparency = 1
-                                trackedTexts[desc] = text
-                            end
-
-                            -- Render text on frame
-                            local textObj = trackedTexts[desc]
-                            textObj.Visible = true
-                            textObj.Text = string.format("Bee Dungeon End - %dm", math.floor(distance))
-                            textObj.Position = Vector2.new(vector.X, vector.Y)
-                            textObj.Color = espColor
-                            textObj.OutlineColor = espOutlineColor
-                            textObj.Size = espSize
-                            textObj.Font = espFont
-                        else
-                            if trackedTexts[desc] then trackedTexts[desc].Visible = false end
-                        end
+                        applyBeeEsp(desc, distance)
                     else
-                        if trackedTexts[desc] then trackedTexts[desc].Visible = false end
+                        removeBeeEsp(desc)
                     end
                 end
             end
         else
-            -- Clean out and hide everything if feature is off
-            for part, textObj in pairs(trackedTexts) do
-                textObj.Visible = false
+            for _, desc in pairs(workspace:GetDescendants()) do
+                if desc:IsA("BasePart") then removeBeeEsp(desc) end
             end
         end
     end
 end)
 
--- Infinite Jump Request Event Connection
+-- Character Action Event Loops
 userInputSer.JumpRequest:Connect(function()
     if infJumpActive and plr.Character then
         local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
-        if hum then
-            hum:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
+        if hum then hum:ChangeState(Enum.HumanoidStateType.Jumping) end
     end
 end)
 
--- Loop Walkspeed Setup
 local function setupHumanoidSpeed(humanoid)
     humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
         if loopWSActive and humanoid.WalkSpeed ~= targetWalkSpeed then
@@ -247,20 +267,17 @@ end
 runSer.RenderStepped:Connect(function()
     if loopWSActive and plr.Character then
         local hum = plr.Character:FindFirstChildWhichIsA("Humanoid")
-        if hum and hum.WalkSpeed ~= targetWalkSpeed then
-            hum.WalkSpeed = targetWalkSpeed
-        end
+        if hum and hum.WalkSpeed ~= targetWalkSpeed then hum.WalkSpeed = targetWalkSpeed end
     end
 end)
 
 workspace.DescendantAdded:Connect(cleanPart)
 
+-- ====================================================================
+-- SEGMENT 2: RAYFIELD INTERFACE LAYOUT & INITIALIZATION
+-- ====================================================================
 
--- =========================================================
--- 2. RAYFIELD UI INTERFACE LAYOUT SETUP
--- =========================================================
-
--- Player Tab
+-- ─── PLAYER TAB ─────────────────────────────────────────────────────
 local PlayerTab = Window:CreateTab("Player", nil)
 
 local InfJumpToggle = PlayerTab:CreateToggle({
@@ -271,7 +288,6 @@ local InfJumpToggle = PlayerTab:CreateToggle({
         infJumpActive = Value
     end,
 })
-
 
 local LoopWSToggle = PlayerTab:CreateToggle({
     Name = "Loop Walkspeed",
@@ -375,9 +391,9 @@ local ESPSizeInput = CustomizationTab:CreateInput({
     end,
 })
 
--- =========================================================
--- 3. RUNTIME INITIALIZATION EXECUTIONS
--- =========================================================
+-- ====================================================================
+-- RUNTIME INITIALIZATION HOOKS
+-- ====================================================================
 for _, v in ipairs(workspace.NPCS:GetChildren()) do
     espDraw(v)
 end
